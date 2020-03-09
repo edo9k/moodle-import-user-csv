@@ -1,3 +1,6 @@
+# sensitive files
+./files
+
 # Logs
 logs
 *.log

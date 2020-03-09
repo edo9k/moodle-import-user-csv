@@ -1,0 +1,152 @@
+<!-- @format -->
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>this is a test</title>
+    <style>
+      #centered {
+        width: 600px;
+        margin: 0 auto;
+      }
+
+      .dropzone {
+        font-size: 20pt;
+        display: block;
+        border: 2px dashed #bbb;
+        margin: 15px;
+        border-radius: 5px;
+        padding: 25px;
+        text-align: center;
+        color: #bbb;
+      }
+
+      ul {
+        text-align: left;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="centered">
+      <div id="information">
+        <ol>
+          <li>Coletar todos nomes de usuários e seus ids.</li>
+          <li>Coletar todos os grupos, e ids de usuários associados a esses grupos.</li>
+          <li>Coletar o nome do curso.</li>
+        </ol>
+      </div>
+      <div id="files" class="dropzone">
+        Arraste os seguintes arquivos para esse campo:
+        <ul>
+          <li><strong>user.xml</strong></li>
+          <li><strong>groups.xml</strong></li>
+          <li><strong>course/course.xml</strong></li>
+        </ul>
+      </div>
+
+      <pre id="list"></pre>
+    </div>
+
+    <script>
+      const extracted = { users: [], groups: [], course: [] }
+      const usersRegex = /(?<=user id=")\d+(?=")|(?<=<username>).+(?=<\/username>)/g
+      const groupsRegex = /(?<=<name>).*?(?=<\/name>)|(?<=<userid>).*?(?=<\/userid>)/g
+      const courseRegex = /(?<=<shortname>).*?(?=<\/shortname>)/g
+
+      const reader = new FileReader()
+
+      // reader event
+      reader.addEventListener(
+        'load',
+        e => {
+          const fileText = reader.result
+          const name = e.target.fileName
+          console.log(e.target)
+
+          // file names: users.xml, groups.xml, course.xml
+
+          console.log(name)
+          if (name === 'users.xml') extracted.users = fileText.match(usersRegex)
+          if (name === 'groups.xml') extracted.groups = fileText.match(groupsRegex)
+          if (name === 'course.xml') extracted.course = fileText.match(courseRegex)
+        },
+        false
+      )
+
+      const handleFileSelect = e => {
+        e.stopPropagation()
+        e.preventDefault()
+
+        const file = e.dataTransfer.files[0]
+
+        reader.fileName = file.name
+        reader.readAsText(file)
+      }
+
+      const handleDragOver = e => {
+        e.stopPropagation()
+        e.preventDefault()
+        e.dataTransfer.dropEffect = 'copy'
+      }
+
+      // event listeners
+      const fileZone = document.querySelector('#files')
+      fileZone.addEventListener('dragover', handleDragOver, false)
+      fileZone.addEventListener('drop', handleFileSelect, false)
+
+      // --- xml to csv conversion --
+
+      const cutGroups = list => (list.length <= 1 ? [list] : [[list[0], list[1] - 1], ...cutGroups(list.slice(1))])
+
+      const getGroupIndexes = list => {
+        const groups = list.filter((x, idx) => /^[^\d]+$/.test(x))
+        const indexes = groups.map(x => list.indexOf(x))
+        return indexes
+      }
+
+      const main = extracted => {
+        const { users, groups, course } = extracted
+
+        if (!users.length || !groups.length || !course.length) {
+          document.querySelector('#list').innerText = `
+            Por favor anexe todos os arquivos
+            ${users.length ? '✅' : '❌'} users.xml
+            ${groups.length ? '✅' : '❌'} groups.xml
+            ${course.length ? '✅' : '❌'} course.xml
+          `
+          return false
+        }
+
+        // user names & ids
+        let userData = []
+        for (let i = 0; i < users.length; i += 2) {
+          userData.push({ id: users[i], username: users[i + 1] })
+        }
+
+        // group names and related users
+        const groupIndexes = getGroupIndexes(groups)
+        const groupBoundaries = cutGroups(groupIndexes)
+        const groupData = groupBoundaries.map(x => groups.slice(x[0], x[1]))
+
+        // csv ilnes
+        let csv = []
+        groupData.forEach(g => {
+          const tmp = userData
+            .map(x => (g.includes(x.id) ? { ...x, group1: g[0] } : x)) // adds group
+            .filter(x => x.group1) // removes lines without group
+          csv.push(tmp)
+        })
+
+        const final =
+          'username, course1, group1\n' +
+          csv
+            .flat()
+            .map(x => ({ ...x, course1: course[0] }))
+            .map(x => [x.username, x.course1, x.group1].join(', '))
+            .sort()
+            .join('\n')
+
+        document.querySelector('#list').innerText = final
+      }
+    </script>
+  </body>
+</html>

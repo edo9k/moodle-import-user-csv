@@ -2,6 +2,7 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <meta charset="UTF-8" />
     <title>this is a test</title>
     <style>
       #centered {
@@ -23,21 +24,27 @@
       ul {
         text-align: left;
       }
+
+      .done {
+        text-decoration: line-through;
+      }
     </style>
   </head>
   <body>
     <div id="centered">
       <div id="information">
         <ol>
-          <li>Coletar todos nomes de usuários e seus ids.</li>
-          <li>Coletar todos os grupos, e ids de usuários associados a esses grupos.</li>
-          <li>Coletar o nome do curso.</li>
+          <li class="done">Coletar todos nomes de usuários e seus ids.</li>
+          <li class="done">Coletar todos os grupos, e ids de usuários associados a esses grupos.</li>
+          <li class="done">Coletar o nome do curso.</li>
+          <li class="done">Lidar com vários arquivos de uma vez só.</li>
+          <li class="done">Gerar arquivo final (para download)</li>
         </ol>
       </div>
       <div id="files" class="dropzone">
         Arraste os seguintes arquivos para esse campo:
         <ul>
-          <li><strong>user.xml</strong></li>
+          <li><strong>users.xml</strong></li>
           <li><strong>groups.xml</strong></li>
           <li><strong>course/course.xml</strong></li>
         </ul>
@@ -52,34 +59,47 @@
       const groupsRegex = /(?<=<name>).*?(?=<\/name>)|(?<=<userid>).*?(?=<\/userid>)/g
       const courseRegex = /(?<=<shortname>).*?(?=<\/shortname>)/g
 
-      const reader = new FileReader()
-
-      // reader event
-      reader.addEventListener(
-        'load',
-        e => {
-          const fileText = reader.result
-          const name = e.target.fileName
-          console.log(e.target)
-
-          // file names: users.xml, groups.xml, course.xml
-
-          console.log(name)
-          if (name === 'users.xml') extracted.users = fileText.match(usersRegex)
-          if (name === 'groups.xml') extracted.groups = fileText.match(groupsRegex)
-          if (name === 'course.xml') extracted.course = fileText.match(courseRegex)
-        },
-        false
-      )
+      const timestamp = () => new Date().toLocaleString('pt-BR').replace(/\D/g, '-')
 
       const handleFileSelect = e => {
         e.stopPropagation()
         e.preventDefault()
 
-        const file = e.dataTransfer.files[0]
+        const { files } = e.dataTransfer
 
-        reader.fileName = file.name
-        reader.readAsText(file)
+        // load file contents
+        Array.from(files).forEach(file => {
+          const reader = new FileReader()
+          reader.onload = e => {
+            const fileText = reader.result
+            const { name } = file
+
+            console.log(name)
+
+            // file names: users.xml, groups.xml, course.xml
+            if (name === 'users.xml') extracted.users = fileText.match(usersRegex)
+            if (name === 'groups.xml') extracted.groups = fileText.match(groupsRegex)
+            if (name === 'course.xml') extracted.course = fileText.match(courseRegex)
+
+            // extract and create csv file
+            main(extracted)
+          }
+
+          reader.readAsText(file)
+        })
+      }
+
+      const download = (filename, text) => {
+        var element = document.createElement('a')
+        element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text))
+        element.setAttribute('download', filename)
+
+        element.style.display = 'none'
+        document.body.appendChild(element)
+
+        element.click()
+
+        document.body.removeChild(element)
       }
 
       const handleDragOver = e => {
@@ -92,6 +112,8 @@
       const fileZone = document.querySelector('#files')
       fileZone.addEventListener('dragover', handleDragOver, false)
       fileZone.addEventListener('drop', handleFileSelect, false)
+      window.addEventListener('dragover', handleDragOver, false)
+      window.addEventListener('drop', handleFileSelect, false)
 
       // --- xml to csv conversion --
 
@@ -103,7 +125,7 @@
         return indexes
       }
 
-      const main = extracted => {
+      function main(extracted) {
         const { users, groups, course } = extracted
 
         if (!users.length || !groups.length || !course.length) {
@@ -137,15 +159,16 @@
         })
 
         const final =
-          'username, course1, group1\n' +
+          'username,course1,group1\n' +
           csv
             .flat()
             .map(x => ({ ...x, course1: course[0] }))
-            .map(x => [x.username, x.course1, x.group1].join(', '))
+            .map(x => [x.username, x.course1, x.group1].join(','))
             .sort()
             .join('\n')
 
-        document.querySelector('#list').innerText = final
+        download(`moodle-import-${timestamp()}.csv`, final)
+        document.querySelector('#list').innerText = `Arquivo gerado às ${new Date().toLocaleString()}\n`
       }
     </script>
   </body>

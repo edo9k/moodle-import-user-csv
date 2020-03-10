@@ -3,10 +3,10 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-    <title>this is a test</title>
+    <title></title>
     <style>
       #centered {
-        width: 600px;
+        width: 800px;
         margin: 0 auto;
       }
 
@@ -14,7 +14,7 @@
         font-size: 20pt;
         display: block;
         border: 2px dashed #bbb;
-        margin: 15px;
+        margin: 50px 0 50px 0;
         border-radius: 5px;
         padding: 25px;
         text-align: center;
@@ -25,22 +25,30 @@
         text-align: left;
       }
 
-      .done {
-        text-decoration: line-through;
+      #information {
+        font-size: 16pt;
+        margin: 15px;
+        text-align: justify;
+      }
+
+      #information > img,
+      p {
+        margin-top: 10px;
+        margin-bottom: 5px;
+      }
+
+      #information > img {
+        max-width: 100%;
+        height: auto;
+      }
+
+      .hidden {
+        display: none;
       }
     </style>
   </head>
   <body>
     <div id="centered">
-      <div id="information">
-        <ol>
-          <li class="done">Coletar todos nomes de usuários e seus ids.</li>
-          <li class="done">Coletar todos os grupos, e ids de usuários associados a esses grupos.</li>
-          <li class="done">Coletar o nome do curso.</li>
-          <li class="done">Lidar com vários arquivos de uma vez só.</li>
-          <li class="done">Gerar arquivo final (para download)</li>
-        </ol>
-      </div>
       <div id="files" class="dropzone">
         Arraste os seguintes arquivos para esse campo:
         <ul>
@@ -51,8 +59,28 @@
       </div>
 
       <pre id="list"></pre>
-    </div>
 
+      <hr />
+      <div><a href="#" id="moreinfo">clique para mais informações...</a></div>
+      <div id="information" class="hidden">
+        <p>
+          Descompacte o arquivo de exportação do Moodle. Normalmente ele vem com a extensão <strong>.mbz</strong>, que é
+          só um arquivo <strong>zip</strong> com uma extensão modificada. Mudando a extensão para zip, pode ser
+          descompactado com qualquer ferramenta.
+        </p>
+        <p>Arraste para essa página os arquivos <strong>users.xml</strong> e <strong>groups.xml:</strong></p>
+        <img
+          src="./images/users-and-groups.png"
+          alt="pasta raiz do arquivo de exportação do moodle, mostrando os arquivos users.xml e groups.xml"
+        />
+        <p>Dentro da pasta /course, encontre o arquivo <strong>course.xml</strong> e arraste para cá.</p>
+        <img src="./images/course.png" alt="pasta course, mostrando o arquivo course.xml" />
+        <p>
+          O arquivo csv será gerado, com o nome <strong>moodle-import-xx-xx-xxxx-xx-xx-xx.csv</strong>, com a data do
+          momento em que o arquivo foi gerado no nome.
+        </p>
+      </div>
+    </div>
     <script>
       const extracted = { users: [], groups: [], course: [] }
       const usersRegex = /(?<=user id=")\d+(?=")|(?<=<username>).+(?=<\/username>)/g
@@ -170,6 +198,12 @@
         download(`moodle-import-${timestamp()}.csv`, final)
         document.querySelector('#list').innerText = `Arquivo gerado às ${new Date().toLocaleString()}\n`
       }
+
+      // ------------ toggle info box -----
+      document.querySelector('#moreinfo').addEventListener('click', () => {
+        const infobox = document.querySelector('#information')
+        infobox.classList.toggle('hidden')
+      })
     </script>
   </body>
 </html>
